@@ -1,17 +1,26 @@
+#[cfg(feature = "named-prepared-statements")]
 use crate::client::InnerClient;
+#[cfg(feature = "named-prepared-statements")]
 use crate::codec::FrontendMessage;
+#[cfg(feature = "named-prepared-statements")]
 use crate::connection::RequestMessages;
 use crate::types::Type;
+#[cfg(feature = "named-prepared-statements")]
 use postgres_protocol::message::frontend;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
+#[cfg(feature = "named-prepared-statements")]
+use std::sync::Weak;
 
 struct StatementInner {
+    #[cfg(feature = "named-prepared-statements")]
     client: Weak<InnerClient>,
+    #[cfg(feature = "named-prepared-statements")]
     name: String,
     params: Vec<Type>,
     columns: Vec<Column>,
 }
 
+#[cfg(feature = "named-prepared-statements")]
 impl Drop for StatementInner {
     fn drop(&mut self) {
         if self.name.is_empty() {
@@ -36,6 +45,7 @@ impl Drop for StatementInner {
 pub struct Statement(Arc<StatementInner>);
 
 impl Statement {
+    #[cfg(feature = "named-prepared-statements")]
     pub(crate) fn new(
         inner: &Arc<InnerClient>,
         name: String,
@@ -52,13 +62,16 @@ impl Statement {
 
     pub(crate) fn unnamed(params: Vec<Type>, columns: Vec<Column>) -> Statement {
         Statement(Arc::new(StatementInner {
+            #[cfg(feature = "named-prepared-statements")]
             client: Weak::new(),
+            #[cfg(feature = "named-prepared-statements")]
             name: String::new(),
             params,
             columns,
         }))
     }
 
+    #[cfg(feature = "named-prepared-statements")]
     pub(crate) fn name(&self) -> &str {
         &self.0.name
     }
@@ -76,9 +89,12 @@ impl Statement {
 
 impl std::fmt::Debug for Statement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        f.debug_struct("Statement")
-            .field("name", &self.0.name)
-            .field("params", &self.0.params)
+        let mut ds = f.debug_struct("Statement");
+
+        #[cfg(feature = "named-prepared-statements")]
+        ds.field("name", &self.0.name);
+
+        ds.field("params", &self.0.params)
             .field("columns", &self.0.columns)
             .finish_non_exhaustive()
     }

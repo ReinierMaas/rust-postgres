@@ -1,24 +1,30 @@
+#[cfg(feature = "named-prepared-statements")]
+use crate::Portal;
 use crate::client::{InnerClient, Responses};
 use crate::codec::FrontendMessage;
 use crate::connection::RequestMessages;
 use crate::prepare::get_type;
 use crate::types::{BorrowToSql, IsNull};
-use crate::{Column, Error, Portal, Row, Statement};
+use crate::{Column, Error, Row, Statement};
 use bytes::{Bytes, BytesMut};
 use fallible_iterator::FallibleIterator;
 use futures_util::Stream;
+#[cfg(feature = "named-prepared-statements")]
 use log::{Level, debug, log_enabled};
 use pin_project_lite::pin_project;
 use postgres_protocol::message::backend::{CommandCompleteBody, Message};
 use postgres_protocol::message::frontend;
 use postgres_types::Type;
+#[cfg(feature = "named-prepared-statements")]
 use std::fmt;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll, ready};
 
+#[cfg(feature = "named-prepared-statements")]
 struct BorrowToSqlParamsDebug<'a, T>(&'a [T]);
 
+#[cfg(feature = "named-prepared-statements")]
 impl<T> fmt::Debug for BorrowToSqlParamsDebug<'_, T>
 where
     T: BorrowToSql,
@@ -30,6 +36,7 @@ where
     }
 }
 
+#[cfg(feature = "named-prepared-statements")]
 pub async fn query<P, I>(
     client: &InnerClient,
     statement: Statement,
@@ -172,6 +179,7 @@ where
     }
 }
 
+#[cfg(feature = "named-prepared-statements")]
 pub async fn query_portal(
     client: &InnerClient,
     portal: &Portal,
@@ -205,6 +213,7 @@ pub fn extract_row_affected(body: &CommandCompleteBody) -> Result<u64, Error> {
     Ok(rows)
 }
 
+#[cfg(feature = "named-prepared-statements")]
 pub async fn execute<P, I>(
     client: &InnerClient,
     statement: Statement,
@@ -242,6 +251,7 @@ where
     }
 }
 
+#[cfg(feature = "named-prepared-statements")]
 async fn start(client: &InnerClient, buf: Bytes) -> Result<Responses, Error> {
     let mut responses = client.send(RequestMessages::Single(FrontendMessage::Raw(buf)))?;
 
@@ -253,6 +263,7 @@ async fn start(client: &InnerClient, buf: Bytes) -> Result<Responses, Error> {
     Ok(responses)
 }
 
+#[cfg(feature = "named-prepared-statements")]
 pub fn encode<P, I>(client: &InnerClient, statement: &Statement, params: I) -> Result<Bytes, Error>
 where
     P: BorrowToSql,
@@ -267,6 +278,7 @@ where
     })
 }
 
+#[cfg(feature = "named-prepared-statements")]
 pub fn encode_bind<P, I>(
     statement: &Statement,
     params: I,
