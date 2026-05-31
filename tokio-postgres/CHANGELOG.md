@@ -1,5 +1,11 @@
 # Change Log
 
+## Unreleased
+
+### Added
+
+* Added a default-on `named-prepared-statements` feature. Disabling it removes APIs that require protocol-level named prepared statements while leaving typed unnamed query APIs available.
+
 ## v0.7.18 - 2026-06-12
 
 ### Fixed
