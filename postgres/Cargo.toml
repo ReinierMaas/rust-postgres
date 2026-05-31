@@ -14,11 +14,14 @@ rust-version = "1.85"
 [[bench]]
 name = "bench"
 harness = false
+required-features = ["named-prepared-statements"]
 
 [package.metadata.docs.rs]
 all-features = true
 
 [features]
+default = ["named-prepared-statements"]
+named-prepared-statements = ["tokio-postgres/named-prepared-statements"]
 array-impls = ["tokio-postgres/array-impls"]
 with-bit-vec-0_6 = ["tokio-postgres/with-bit-vec-0_6"]
 with-bit-vec-0_7 = ["tokio-postgres/with-bit-vec-0_7"]
