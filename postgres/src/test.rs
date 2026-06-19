@@ -8,10 +8,12 @@ use tokio_postgres::error::SqlState;
 use tokio_postgres::types::Type;
 
 use super::*;
+#[cfg(feature = "named-prepared-statements")]
 use crate::binary_copy::{BinaryCopyInWriter, BinaryCopyOutIter};
 use fallible_iterator::FallibleIterator;
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn prepare() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
@@ -23,6 +25,7 @@ fn prepare() {
 }
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn query_prepared() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
@@ -36,7 +39,7 @@ fn query_prepared() {
 fn query_unprepared() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
-    let rows = client.query("SELECT $1::TEXT", &[&"hello"]).unwrap();
+    let rows = client.query_typed("SELECT $1::TEXT", &[(&"hello", Type::TEXT)]).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].get::<_, &str>(0), "hello");
 }
@@ -52,12 +55,12 @@ fn transaction_commit() {
     let mut transaction = client.transaction().unwrap();
 
     transaction
-        .execute("INSERT INTO foo DEFAULT VALUES", &[])
+        .execute_typed("INSERT INTO foo DEFAULT VALUES", &[])
         .unwrap();
 
     transaction.commit().unwrap();
 
-    let rows = client.query("SELECT * FROM foo", &[]).unwrap();
+    let rows = client.query_typed("SELECT * FROM foo", &[]).unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].get::<_, i32>(0), 1);
 }
@@ -73,12 +76,12 @@ fn transaction_rollback() {
     let mut transaction = client.transaction().unwrap();
 
     transaction
-        .execute("INSERT INTO foo DEFAULT VALUES", &[])
+        .execute_typed("INSERT INTO foo DEFAULT VALUES", &[])
         .unwrap();
 
     transaction.rollback().unwrap();
 
-    let rows = client.query("SELECT * FROM foo", &[]).unwrap();
+    let rows = client.query_typed("SELECT * FROM foo", &[]).unwrap();
     assert_eq!(rows.len(), 0);
 }
 
@@ -93,12 +96,12 @@ fn transaction_drop() {
     let mut transaction = client.transaction().unwrap();
 
     transaction
-        .execute("INSERT INTO foo DEFAULT VALUES", &[])
+        .execute_typed("INSERT INTO foo DEFAULT VALUES", &[])
         .unwrap();
 
     drop(transaction);
 
-    let rows = client.query("SELECT * FROM foo", &[]).unwrap();
+    let rows = client.query_typed("SELECT * FROM foo", &[]).unwrap();
     assert_eq!(rows.len(), 0);
 }
 
@@ -112,18 +115,18 @@ fn transaction_drop_immediate_rollback() {
         .unwrap();
 
     client
-        .execute("INSERT INTO foo VALUES (1) ON CONFLICT DO NOTHING", &[])
+        .execute_typed("INSERT INTO foo VALUES (1) ON CONFLICT DO NOTHING", &[])
         .unwrap();
 
     let mut transaction = client.transaction().unwrap();
 
     transaction
-        .execute("SELECT * FROM foo FOR UPDATE", &[])
+        .execute_typed("SELECT * FROM foo FOR UPDATE", &[])
         .unwrap();
 
     drop(transaction);
 
-    let rows = client2.query("SELECT * FROM foo FOR UPDATE", &[]).unwrap();
+    let rows = client2.query_typed("SELECT * FROM foo FOR UPDATE", &[]).unwrap();
     assert_eq!(rows.len(), 1);
 }
 
@@ -138,19 +141,19 @@ fn nested_transactions() {
     let mut transaction = client.transaction().unwrap();
 
     transaction
-        .execute("INSERT INTO foo (id) VALUES (1)", &[])
+        .execute_typed("INSERT INTO foo (id) VALUES (1)", &[])
         .unwrap();
 
     let mut transaction2 = transaction.transaction().unwrap();
 
     transaction2
-        .execute("INSERT INTO foo (id) VALUES (2)", &[])
+        .execute_typed("INSERT INTO foo (id) VALUES (2)", &[])
         .unwrap();
 
     transaction2.rollback().unwrap();
 
     let rows = transaction
-        .query("SELECT id FROM foo ORDER BY id", &[])
+        .query_typed("SELECT id FROM foo ORDER BY id", &[])
         .unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].get::<_, i32>(0), 1);
@@ -158,20 +161,20 @@ fn nested_transactions() {
     let mut transaction3 = transaction.transaction().unwrap();
 
     transaction3
-        .execute("INSERT INTO foo (id) VALUES(3)", &[])
+        .execute_typed("INSERT INTO foo (id) VALUES(3)", &[])
         .unwrap();
 
     let mut transaction4 = transaction3.transaction().unwrap();
 
     transaction4
-        .execute("INSERT INTO foo (id) VALUES(4)", &[])
+        .execute_typed("INSERT INTO foo (id) VALUES(4)", &[])
         .unwrap();
 
     transaction4.commit().unwrap();
     transaction3.commit().unwrap();
     transaction.commit().unwrap();
 
-    let rows = client.query("SELECT id FROM foo ORDER BY id", &[]).unwrap();
+    let rows = client.query_typed("SELECT id FROM foo ORDER BY id", &[]).unwrap();
     assert_eq!(rows.len(), 3);
     assert_eq!(rows[0].get::<_, i32>(0), 1);
     assert_eq!(rows[1].get::<_, i32>(0), 3);
@@ -189,19 +192,19 @@ fn savepoints() {
     let mut transaction = client.transaction().unwrap();
 
     transaction
-        .execute("INSERT INTO foo (id) VALUES (1)", &[])
+        .execute_typed("INSERT INTO foo (id) VALUES (1)", &[])
         .unwrap();
 
     let mut savepoint1 = transaction.savepoint("savepoint1").unwrap();
 
     savepoint1
-        .execute("INSERT INTO foo (id) VALUES (2)", &[])
+        .execute_typed("INSERT INTO foo (id) VALUES (2)", &[])
         .unwrap();
 
     savepoint1.rollback().unwrap();
 
     let rows = transaction
-        .query("SELECT id FROM foo ORDER BY id", &[])
+        .query_typed("SELECT id FROM foo ORDER BY id", &[])
         .unwrap();
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].get::<_, i32>(0), 1);
@@ -209,20 +212,20 @@ fn savepoints() {
     let mut savepoint2 = transaction.savepoint("savepoint2").unwrap();
 
     savepoint2
-        .execute("INSERT INTO foo (id) VALUES(3)", &[])
+        .execute_typed("INSERT INTO foo (id) VALUES(3)", &[])
         .unwrap();
 
     let mut savepoint3 = savepoint2.savepoint("savepoint3").unwrap();
 
     savepoint3
-        .execute("INSERT INTO foo (id) VALUES(4)", &[])
+        .execute_typed("INSERT INTO foo (id) VALUES(4)", &[])
         .unwrap();
 
     savepoint3.commit().unwrap();
     savepoint2.commit().unwrap();
     transaction.commit().unwrap();
 
-    let rows = client.query("SELECT id FROM foo ORDER BY id", &[]).unwrap();
+    let rows = client.query_typed("SELECT id FROM foo ORDER BY id", &[]).unwrap();
     assert_eq!(rows.len(), 3);
     assert_eq!(rows[0].get::<_, i32>(0), 1);
     assert_eq!(rows[1].get::<_, i32>(0), 3);
@@ -230,6 +233,7 @@ fn savepoints() {
 }
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn copy_in() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
@@ -253,6 +257,7 @@ fn copy_in() {
 }
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn copy_in_abort() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
@@ -272,6 +277,7 @@ fn copy_in_abort() {
 }
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn binary_copy_in() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
@@ -297,6 +303,7 @@ fn binary_copy_in() {
 }
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn copy_out() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
@@ -318,6 +325,7 @@ fn copy_out() {
 }
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn binary_copy_out() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
@@ -344,6 +352,7 @@ fn binary_copy_out() {
 }
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn portal() {
     let mut client = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
 
@@ -501,6 +510,7 @@ fn explicit_close() {
 }
 
 #[test]
+#[cfg(feature = "named-prepared-statements")]
 fn check_send() {
     fn is_send<T: Send>() {}
 
@@ -515,13 +525,13 @@ fn is_closed() {
     assert!(!client.is_closed());
     client.check_connection().unwrap();
 
-    let row = client.query_one("select pg_backend_pid()", &[]).unwrap();
+    let row = client.query_typed_one("select pg_backend_pid()", &[]).unwrap();
     let pid: i32 = row.get(0);
 
     {
         let mut client2 = Client::connect("host=localhost port=5433 user=postgres", NoTls).unwrap();
         client2
-            .query("SELECT pg_terminate_backend($1)", &[&pid])
+            .query_typed("SELECT pg_terminate_backend($1)", &[(&pid, Type::INT4)])
             .unwrap();
     }
 

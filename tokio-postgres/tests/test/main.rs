@@ -1,27 +1,38 @@
 #![warn(rust_2018_idioms)]
 
+#[cfg(feature = "named-prepared-statements")]
 use bytes::{Bytes, BytesMut};
 use futures_channel::mpsc;
-use futures_util::{FutureExt, SinkExt, StreamExt, TryStreamExt, join, stream, try_join};
+use futures_util::{FutureExt, StreamExt, TryStreamExt, join, stream};
+#[cfg(feature = "named-prepared-statements")]
+use futures_util::{SinkExt, try_join};
 use pin_project_lite::pin_project;
+#[cfg(feature = "named-prepared-statements")]
 use std::fmt::Write;
 use std::future::{self, Future};
-use std::pin::{Pin, pin};
+use std::pin::Pin;
+#[cfg(feature = "named-prepared-statements")]
+use std::pin::pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time;
+#[cfg(feature = "named-prepared-statements")]
+use tokio_postgres::IsolationLevel;
 use tokio_postgres::error::SqlState;
 use tokio_postgres::tls::{NoTls, NoTlsStream};
-use tokio_postgres::types::{Kind, Type};
-use tokio_postgres::{
-    AsyncMessage, Client, Config, Connection, Error, IsolationLevel, SimpleQueryMessage,
-};
+#[cfg(feature = "named-prepared-statements")]
+use tokio_postgres::types::Kind;
+use tokio_postgres::types::Type;
+use tokio_postgres::{AsyncMessage, Client, Config, Connection, Error, SimpleQueryMessage};
 
+#[cfg(feature = "named-prepared-statements")]
 mod binary_copy;
+#[cfg(feature = "named-prepared-statements")]
 mod parse;
 #[cfg(feature = "runtime")]
 mod runtime;
+#[cfg(feature = "named-prepared-statements")]
 mod types;
 
 pin_project! {
@@ -68,7 +79,7 @@ async fn connect(s: &str) -> Client {
 
 async fn current_transaction_id(client: &Client) -> i64 {
     client
-        .query("SELECT txid_current()", &[])
+        .query_typed("SELECT txid_current()", &[])
         .await
         .unwrap()
         .pop()
@@ -153,6 +164,7 @@ async fn sync() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn pipelined_prepare() {
     let client = connect("user=postgres").await;
 
@@ -169,6 +181,7 @@ async fn pipelined_prepare() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn prepare_type_modifier() {
     let client = connect("user=postgres").await;
 
@@ -193,6 +206,7 @@ async fn prepare_type_modifier() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn insert_select() {
     let client = connect("user=postgres").await;
 
@@ -217,6 +231,7 @@ async fn insert_select() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn custom_enum() {
     let client = connect("user=postgres").await;
 
@@ -246,6 +261,7 @@ async fn custom_enum() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn custom_domain() {
     let client = connect("user=postgres").await;
 
@@ -262,6 +278,7 @@ async fn custom_domain() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn custom_array() {
     let client = connect("user=postgres").await;
 
@@ -279,6 +296,7 @@ async fn custom_array() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn custom_composite() {
     let client = connect("user=postgres").await;
 
@@ -311,6 +329,7 @@ async fn custom_composite() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn custom_range() {
     let client = connect("user=postgres").await;
 
@@ -406,6 +425,7 @@ async fn cancel_query_raw() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn transaction_commit() {
     let mut client = connect("user=postgres").await;
 
@@ -499,6 +519,7 @@ async fn execute_typed() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn transaction_rollback() {
     let mut client = connect("user=postgres").await;
 
@@ -600,6 +621,7 @@ async fn transaction_rollback_future_cancellation() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn transaction_rollback_drop() {
     let mut client = connect("user=postgres").await;
 
@@ -627,6 +649,7 @@ async fn transaction_rollback_drop() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn transaction_builder() {
     let mut client = connect("user=postgres").await;
 
@@ -662,6 +685,7 @@ async fn transaction_builder() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn copy_in() {
     let client = connect("user=postgres").await;
 
@@ -701,6 +725,7 @@ async fn copy_in() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn copy_in_large() {
     let client = connect("user=postgres").await;
 
@@ -736,6 +761,7 @@ async fn copy_in_large() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn copy_in_error() {
     let client = connect("user=postgres").await;
 
@@ -762,6 +788,7 @@ async fn copy_in_error() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn copy_out() {
     let client = connect("user=postgres").await;
 
@@ -867,6 +894,7 @@ async fn notifications() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn query_portal() {
     let mut client = connect("user=postgres").await;
 
@@ -928,6 +956,7 @@ async fn disable_channel_binding() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn check_send() {
     fn is_send<T: Send>(_: &T) {}
 
@@ -961,6 +990,7 @@ async fn check_send() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn query_one() {
     let client = connect("user=postgres").await;
 
@@ -1050,6 +1080,7 @@ async fn query_typed_one() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn query_opt() {
     let client = connect("user=postgres").await;
 
@@ -1147,6 +1178,7 @@ async fn query_typed_opt() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn deferred_constraint() {
     let client = connect("user=postgres").await;
 
@@ -1293,6 +1325,7 @@ async fn query_typed_with_transaction() {
 }
 
 #[tokio::test]
+#[cfg(feature = "named-prepared-statements")]
 async fn query_scalar() {
     let client = connect("user=postgres").await;
     client

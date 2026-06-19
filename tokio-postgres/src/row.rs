@@ -2,9 +2,8 @@
 
 use crate::row::sealed::{AsName, Sealed};
 use crate::simple_query::SimpleColumn;
-use crate::statement::Column;
 use crate::types::{FromSql, Type, WrongType};
-use crate::{Error, Statement};
+use crate::{Column, Error, Statement};
 use fallible_iterator::FallibleIterator;
 use postgres_protocol::message::backend::DataRowBody;
 use std::fmt;
